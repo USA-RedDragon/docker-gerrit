@@ -235,11 +235,37 @@ if [ "$1" = "/gerrit-start.sh" ]; then
     [ -z "${USER_EMAIL}" ]            || set_gerrit_config user.email "${USER_EMAIL}"
     [ -z "${USER_ANONYMOUS_COWARD}" ] || set_gerrit_config user.anonymousCoward "${USER_ANONYMOUS_COWARD}"
 
+  #Section receive
+    [ -z "${RECEIVE_MAX_BATCH_COMMITS}" ] || set_gerrit_config receive.maxBatchCommits "${RECEIVE_MAX_BATCH_COMMITS}"
+
   #Section plugins
   set_gerrit_config plugins.allowRemoteAdmin true
 
   #Section plugin events-log
   set_gerrit_config plugin.events-log.storeUrl ${GERRIT_EVENTS_LOG_STOREURL:-"jdbc:h2:${GERRIT_SITE}/db/ChangeEvents"}
+
+  #Section replication
+  [ -z "${REPLICATION_CONF}" ] || echo ${REPLICATION_CONF} | base64 -d > "${GERRIT_SITE}/etc/replication.config"
+
+  mkdir -p ${GERRIT_HOME}/.ssh
+  #Git ssh keys
+  if [ -n "${SSH_PRIVATE_KEY}" ]; then
+    echo ${SSH_PRIVATE_KEY} | base64 -d > ${GERRIT_HOME}/.ssh/id_rsa
+    chown ${GERRIT_USER} ${GERRIT_HOME}/.ssh/id_rsa
+    chmod 600 ${GERRIT_HOME}/.ssh/id_rsa
+  fi
+
+  if [ -n "${SSH_PUBLIC_KEY}" ]; then
+    echo ${SSH_PUBLIC_KEY} | base64 -d > ${GERRIT_HOME}/.ssh/id_rsa.pub
+    chown ${GERRIT_USER} ${GERRIT_HOME}/.ssh/id_rsa.pub
+    chmod 644 ${GERRIT_HOME}/.ssh/id_rsa.pub
+  fi
+
+  if [ -n "${SSH_KNOWN_HOSTS}" ]; then
+    echo ${SSH_KNOWN_HOSTS} | base64 -d > ${GERRIT_HOME}/.ssh/known_hosts
+    chown ${GERRIT_USER} ${GERRIT_HOME}/.ssh/known_hosts
+    chmod 644 ${GERRIT_HOME}/.ssh/known_hosts
+  fi
 
   #Section httpd
   [ -z "${HTTPD_LISTENURL}" ] || set_gerrit_config httpd.listenUrl "${HTTPD_LISTENURL}"
