@@ -1,5 +1,9 @@
 # Gerrit Docker image
 
+[![Docker Stars](https://img.shields.io/docker/stars/openfrontier/gerrit.svg)](https://hub.docker.com/r/openfrontier/gerrit/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/openfrontier/gerrit.svg)](https://hub.docker.com/r/openfrontier/gerrit/)
+[![Docker Automated build](https://img.shields.io/docker/automated/openfrontier/gerrit.svg)](https://hub.docker.com/r/openfrontier/gerrit/)
+
  The Gerrit code review system with external database and OpenLDAP integration.
  This image is based on the openjdk:jre-alpine or the openjdk:jre-slim which makes this image small and fast.
 
@@ -10,21 +14,23 @@
 
 #### Alpine base
 
- * openfrontier/gerrit:latest -> 2.15.3
- * openfrontier/gerrit:2.15.x -> 2.15.3
- * openfrontier/gerrit:2.14.x -> 2.14.11
- * openfrontier/gerrit:2.13.x -> 2.13.11
+ * openfrontier/gerrit:latest -> 3.0.1
+ * openfrontier/gerrit:2.16.x -> 2.16.10
+ * openfrontier/gerrit:2.15.x -> 2.15.14
+ * openfrontier/gerrit:2.14.x -> 2.14.20
+ * openfrontier/gerrit:2.13.x -> 2.13.14
  * openfrontier/gerrit:2.12.x -> 2.12.7
  * openfrontier/gerrit:2.11.x -> 2.11.10
  * openfrontier/gerrit:2.10.x -> 2.10.6
 
 #### Debian base
 
- * openfrontier/gerrit:2.15.x-slim -> 2.15.3
- * openfrontier/gerrit:2.14.x-slim -> 2.14.11
+ * openfrontier/gerrit:2.15.x-slim -> 2.15.13
+ * openfrontier/gerrit:2.14.x-slim -> 2.14.20
 
 ## Migrate from ReviewDB to NoteDB
-  Since Gerrit 2.15, [NoteDB](https://gerrit-review.googlesource.com/Documentation/note-db.html) is recommended to store account data, group data and change data.
+  Since Gerrit 2.16, [NoteDB](https://gerrit-review.googlesource.com/Documentation/note-db.html) is required to store accounts and groups data.
+  Changes are strongly advised to migrate to NoteDB, too.
   Accounts and Groups are migrated offline to NoteDB automatically during the start up of the container.
   Change data can be migrated to NoteDB offline via the `MIGRATE_TO_NOTEDB_OFFLINE` environment variable.
   Note that migrating changes can takes about twice as long as an offline reindex. In fact, one of the
@@ -72,15 +78,16 @@
 
     docker run -d --volumes-from gerrit_volume -p 8080:8080 -p 29418:29418 openfrontier/gerrit
 
-## Use local directory as the gerrit site storage.
+## Use a docker named volume as the gerrit site storage.
+  **DO NOT** use host volumes in particular directories under the home directory like `~/gerrit` as a gerrit volume!!! Use [named volume](https://success.docker.com/article/different-types-of-volumes) instead!!!
 
-  1. Create a site directory for the gerrit site.
+  1. Create a docker volume for the gerrit site.
 
-    mkdir ~/gerrit_volume
+    docker volume create gerrit_volume
 
   2. Initialize and start gerrit using the local directory created above.
 
-    docker run -d -v ~/gerrit_volume:/var/gerrit/review_site -p 8080:8080 -p 29418:29418 openfrontier/gerrit
+    docker run -d -v gerrit_volume:/var/gerrit/review_site -p 8080:8080 -p 29418:29418 openfrontier/gerrit
 
 ## Install plugins on start up.
 
@@ -228,6 +235,36 @@
     -e OAUTH_BITBUCKET_CLIENT_ID=abcdefg \
     -e OAUTH_BITBUCKET_CLIENT_SECRET=secret123 \
     -e OAUTH_BITBUCKET_FIX_LEGACY_USER_ID=true \
+    -d openfrontier/gerrit
+  ```
+## Setup Replication to multiple remotes 
+
+  ```shell
+    docker run \
+    --name gerrit \
+    -p 8080:8080 \
+    -p 29418:29418 \
+    -e WEBURL=http://my-gerrit.example.com \
+    -e DOWNLOAD_SCHEMES="http ssh" \
+    -e GERRIT_INIT_ARGS="--install-plugin=replication" \
+    -e REPLICATION_REMOTES="bitbucket github" \
+    -e REPLICATE_ON_STARTUP=true \
+    -e REPLICATION_MAX_RETRIES=3 \
+    -e BITBUCKET_URL=https://bitbucket.org/${BB_ORG}/${name}.git \
+    -e BITBUCKET_PROJECTS="demo* prod*" \
+    -e BITBUCKET_USERNAME=${BB_USER} \
+    -e BITBUCKET_PASSWORD=${BB_PASSWORD} \
+    -e BITBUCKET_MIRROR=true \
+    -e BITBUCKET_TIMEOUT=60 \
+    -e BITBUCKET_THREADS=2 \
+    -e BITBUCKET_RESCHEDULE_DELAY=15 \
+    -e BITBUCKET_REPLICATION_DELAY=15 \
+    -e BITBUCKET_REPLICATION_RETRY=1 \
+    -e BITBUCKET_REPLICATION_MAX_RETRIES=5 \
+    -e BITBUCKET_REPLICATE_PERMISSIONS=false \
+    -e BITBUCKET_CREATE_MISSING_REPOSITORIES=false \
+    -e GITHUB_URL=https://${GH_USER}@github.com/${GH_ORG}/${name}.git \
+    -e GITHUB_PASSWORD=${GH_PASSWORD} \
     -d openfrontier/gerrit
   ```
 
